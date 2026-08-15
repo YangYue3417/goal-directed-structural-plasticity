@@ -33,18 +33,29 @@ flowchart TD
 
 </div>
 
-## ✨ Why it matters
+## 🧭 Why this research
 
-| | |
-|:---|:---|
-| 🎯 **Prediction forces structure** | The same network encodes spatial structure at **94.9%** when trained to predict, vs **4.2%** when trained to act |
-| 🌱 **Environment-driven growth works** | Error-driven neurons are **1.47× more functionally critical** than random ones (causal deletion) |
-| ⚖️ **Survival of the fittest** | With a limited brain, growth + pruning keeps a *crack squad*: survivor activation 0.20 → **0.38** (≈ core neurons) |
-| 🗺️ **Cognitive maps emerge without maps** | Path integration localizes at **96.7%** from ambiguous wall-only sensing |
-| 👁️ **Receptive fields self-organize** | Connection-mask learning → spatial tuning (entropy 0.05), no pre-set receptive fields |
-| 💤 **Sleep has boundary conditions** | Fragment replay keeps memory in dynamic worlds; downscaling only helps under capacity pressure |
-| 🏃 **Survives & transfers** | **30 days** in a maze that changes daily, stable across seeds & configs |
-| 🚀 **Zero-architecture-change transfer** | Symbolic → pixel grid → **Atari (Ms. Pac-Man)** — same framework, no changes |
+Classical MoE splits experts when *conflict* saturates — but a 280M model trained this way produced **generalist experts**: no division of labor ever emerged. The conflict signal said "not enough experts," yet adding more changed nothing. The real diagnosis turned out to be granularity, not capacity.
+
+**The question that drives this project: how does specialization actually emerge — and when does it become functional?**
+
+```
+块级 MoE 专家通才 (conflict 饱和, 加容量无效)
+   → 专精不是块级结构, 是神经元级现象
+   → 但神经元级专精只是"记忆分区", 不是"功能"
+   → 什么条件让它有功能? 环境能诱导吗? 怎么持久?
+```
+
+## 🔗 The research chain (每步: 问题 → 为什么 → 发现)
+
+| # | Question | Why we ran it | Finding |
+|:---:|:---|:---|:---|
+| **P1** | 专精在哪一层? | 280M 块级 MoE 失败 — 是架构问题还是容量问题? | 神经元级 0.855 ≫ 块级 0.202 — **粒度决定专精** |
+| **P2** | 什么训练条件让结构涌现? | 神经元级专精只是记忆 — 功能需要什么? | 预测目标 94.9% vs 策略目标 4.2% — **任务需求决定表征** |
+| **P3** | 环境能诱导生长吗? | 生长是"加容量"还是"有目的"? | 误差驱动 1.47× 关键 (删神经元因果); 连接自适应 → 感受野浮现 |
+| **P4** | 无地图怎么建立空间? | 没有 GPS 的动物如何导航? | 路径积分 96.7% — **认知地图从运动累积涌现** |
+| **P5** | 知识怎么持久? | 动态世界 + 有限脑容量 | 睡眠巩固边界: 片段回放有效, 降标依赖容量; **30 昼夜生存** |
+| **P6** | 机制普适吗? | 是玩具特例还是通用原则? | 符号→视觉→Atari 零改动迁移 — **观测无关** |
 
 ![Results](assets/results.png)
 
@@ -58,13 +69,13 @@ flowchart TD
 git clone git@github.com:YangYue3417/goal-directed-structural-plasticity.git
 cd goal-directed-structural-plasticity
 
-# 1. Cognitive map from ambiguous sensing (~15 min)
+# 1. P4: cognitive map from ambiguous sensing (~15 min)
 python world_models/train_wm_explore.py --sensor walls
 
-# 2. Visual receptive fields self-organize (~25 min)
+# 2. P3: visual receptive fields self-organize (~25 min)
 python world_models/train_wm_image_v3.py --epochs 25
 
-# 3. 30-day survival in a daily-changing world (~10 min)
+# 3. P5: 30-day survival in a daily-changing world (~10 min)
 python sleep/test_survival_dynamic.py --days 30
 ```
 
