@@ -26,6 +26,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 sys.path.insert(0, str(Path(__file__).parent))
+import config as cfg
 
 from envs.survival_maze import SurvivalMaze, render_image
 from world_models.train_wm_explore import ACT
@@ -224,7 +225,7 @@ def main():
     torch.manual_seed(args.seed)
     device = torch.device(args.device)
 
-    env = SurvivalMaze(size=10, n_foods=6, seed=42, E0=200.0, day_steps=60, food_restore=80.0)
+    env = SurvivalMaze(**cfg.SURVIVAL_ENV)
     print("收集图像轨迹...", flush=True)
     S, A, R, Sn, P = collect_image(env, args.n_episodes)
     n = len(S)

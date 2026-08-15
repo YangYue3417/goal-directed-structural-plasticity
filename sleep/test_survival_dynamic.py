@@ -18,6 +18,7 @@ import torch
 import torch.nn.functional as F
 
 sys.path.insert(0, str(Path(__file__).parent))
+import config as cfg
 
 from envs.survival_maze import SurvivalMaze
 from world_models.train_wm_explore import WorldExplore, ACT, OBS
@@ -154,7 +155,7 @@ def main():
     args = p.parse_args()
 
     device = torch.device("cuda")
-    env = SurvivalMaze(size=10, n_foods=6, seed=args.seed, E0=200.0, day_steps=60, food_restore=80.0)
+    env = SurvivalMaze(**cfg.SURVIVAL_ENV, seed=args.seed)
     wm = WorldExplore().to(device)
     wm.load_state_dict(torch.load(args.wm, map_location="cpu",
                                   weights_only=False)["model"])

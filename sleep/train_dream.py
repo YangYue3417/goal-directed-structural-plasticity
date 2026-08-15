@@ -18,6 +18,7 @@ import torch
 import torch.nn.functional as F
 
 sys.path.insert(0, str(Path(__file__).parent))
+import config as cfg
 
 from envs.energy_maze import EnergyMaze
 from world_models.train_wm_energy import ValueNet, eval_planner
@@ -104,7 +105,7 @@ def death_metric(V, env, device):
 
 def main():
     device = torch.device("cuda")
-    env = EnergyMaze(size=20, n_foods=3, seed=42, step_cost=0.5)
+    env = EnergyMaze(**cfg.ENERGY_ENV)
     wm = WorldModel(obs_size=10, T=4).to(device)
     wm.load_state_dict(torch.load("runs/wm_energy_nodth.pt",
                                   map_location="cpu", weights_only=False)["model"])

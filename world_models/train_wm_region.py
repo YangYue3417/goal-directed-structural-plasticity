@@ -21,6 +21,7 @@ import torch
 import torch.nn.functional as F
 
 sys.path.insert(0, str(Path(__file__).parent))
+import config as cfg
 
 from envs.survival_maze import SurvivalMaze
 from world_models.train_wm_explore import WorldExplore, ACT, OBS
@@ -139,8 +140,7 @@ def main():
     device = torch.device(args.device)
     rng = np.random.RandomState(args.seed)
 
-    env = SurvivalMaze(size=10, n_foods=6, seed=42, E0=200.0, day_steps=60,
-                       food_restore=80.0)
+    env = SurvivalMaze(**cfg.SURVIVAL_ENV)
     env._day_seed = 777  # 固定地图
     env.energy = env.E0
     env.reset_day()

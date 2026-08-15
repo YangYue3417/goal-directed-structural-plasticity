@@ -13,6 +13,7 @@ import torch
 import torch.nn.functional as F
 
 sys.path.insert(0, str(Path(__file__).parent))
+import config as cfg
 
 from envs.survival_maze import SurvivalMaze
 from world_models.train_wm_energy import ValueNet
@@ -44,7 +45,7 @@ def collect_returns(env, n_episodes=3000, gamma=0.95, seed=0):
 
 def main():
     device = torch.device("cuda")
-    env = SurvivalMaze(size=10, n_foods=6, seed=42, E0=200.0, day_steps=60, food_restore=80.0)
+    env = SurvivalMaze(**cfg.SURVIVAL_ENV)
     print("收集多地图回报...", flush=True)
     X, G = collect_returns(env, n_episodes=3000)
     print(f"  {len(X)} 样本, 回报范围 [{G.min():.1f}, {G.max():.1f}]", flush=True)

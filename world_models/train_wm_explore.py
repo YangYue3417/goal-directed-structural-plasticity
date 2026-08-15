@@ -22,6 +22,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 sys.path.insert(0, str(Path(__file__).parent))
+import config as cfg
 
 from envs.survival_maze import SurvivalMaze
 from units.sparse_unit import SparseUnit
@@ -111,8 +112,7 @@ def main():
 
     global OBS
     OBS = SENSOR_DIMS[args.sensor]
-    env = SurvivalMaze(size=10, n_foods=6, seed=42, E0=200.0, day_steps=60,
-                       food_restore=80.0, sensor=args.sensor)
+    env = SurvivalMaze(**cfg.SURVIVAL_ENV, sensor=args.sensor)
     print("收集轨迹...", flush=True)
     S, A, R, Sn, D, P = collect_trajectories(env, args.n_episodes)
     n = len(S)

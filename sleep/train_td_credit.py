@@ -23,6 +23,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 sys.path.insert(0, str(Path(__file__).parent))
+import config as cfg
 
 from envs.energy_maze import EnergyMaze
 from world_models.train_wm_energy import ValueNet, plan_step, eval_planner
@@ -132,7 +133,7 @@ def rollout_tradeoff(wm, env, device):
 
 def main():
     device = torch.device("cuda")
-    env = EnergyMaze(size=20, n_foods=3, seed=42, step_cost=0.5)
+    env = EnergyMaze(**cfg.ENERGY_ENV)
 
     print("=== A. WM 无作弊 (枚举无死亡) ===", flush=True)
     wm = train_wm_no_death(env, device)

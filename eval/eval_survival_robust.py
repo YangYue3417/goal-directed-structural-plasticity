@@ -35,7 +35,7 @@ def main():
     V.load_state_dict(torch.load("runs/v_survival.pt", map_location="cpu", weights_only=False)["model"])
     wm.eval(); V.eval()
 
-    base = dict(n_foods=6, E0=200.0, day_steps=60, wall_density=0.05, food_restore=80.0)
+    base = dict(cfg.SURVIVAL_ENV)
     print("=== 稳定性: 训练分布内多 seed ===")
     for seed in [43, 44, 45, 7]:
         d, f = run_once(seed, dict(size=10, **base), wm, V, device)
