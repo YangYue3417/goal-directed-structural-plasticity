@@ -1,69 +1,89 @@
-# Goal-Directed Structural Plasticity
+<div align="center">
 
-**目标驱动的结构可塑性: 神经元"有目的"分裂适应不同生存目标**
+# 🧠 Goal-Directed Structural Plasticity
 
-> 神经元的分裂/生长由生存目标的价值信号定向驱动 — 长在价值高的结构上, 形成适应不同子目标的专精神经元, 通过因果删除验证其功能。重要性不前置, 从经验 (奖励/使用频率) 中涌现。
+### Neurons that *purposefully* grow to serve survival goals
 
-```
-生存目标集 {觅食, 导航, 预测, 视觉, ...}
-    ↓ 价值信号 (学习 V / 使用频率 / 预测误差)
-结构生长 {分裂, 募集, 连接自适应, 淘汰}
-    ↓ 产生专精
-专精神经元 {E₁, E₂, ...} 各自适应子目标
-    ↓ 验证
-因果测试 (删 Eᵢ → 目标ᵢ 崩) + 迁移测试
-```
+**Neurons don't grow because they "ran out of capacity" — they grow where it matters.**
 
-## 核心发现 (证据)
+Driven by value signals that emerge from experience (not pre-defined importance), neurons split, recruit connections, and prune to specialize for different sub-goals — validated by causal deletion: *remove the neuron, its goal collapses.*
 
-| # | 发现 | 证据 | 出处 |
-|:---:|:---|:---|:---|
-| 1 | **预测强迫结构** — 表征由任务需求决定 | 世界模型 94.9% vs 直接策略 4.2% (位置解码) | docs/FINDINGS_growth_functional |
-| 2 | **误差驱动生长有功能** | 删神经元: 误差驱动 +2312% vs 随机 +1572% (**1.47×**) | 同上 |
-| 3 | **优胜劣汰** — 脑容量有限, 生长配淘汰 | 淘汰后存活者激活率 0.20→0.38 (接近核心 0.40) | 同上 |
-| 4 | **认知地图双机制** — 指纹 vs 路径积分 | 纯墙感 (完全歧义) 积分后定位 96.7% | 同上 |
-| 5 | **连接掩码学习 → 感受野浮现** | 熵 0.05, 神经元 25/25 位置覆盖 (V1 发育计算版) | 同上 |
-| 6 | **睡眠巩固边界** — 内容匹配环境稳定性 | 片段回放+随机方向 = 30 天存活; 降标依赖容量压力 | 同上 |
-| 7 | **30 昼夜动态生存 + 迁移** | 4 seed + 6 配置全通过; 随机对照 13 天 | 同上 |
-| 8 | **跨域迁移** — 架构零改动 | 符号→视觉网格→Atari (Ms. Pac-Man) 全链路 | 同上 |
+---
 
-## 目录结构
+![Framework](assets/framework.png)
 
-```
-goal-directed-structural-plasticity/
-├── README.md                # 本文件
-├── docs/                    # 发现文档 + 综合整理 (MASTER_SUMMARY)
-├── envs/                    # 环境 (survival_maze / no_map_maze / energy_maze)
-├── world_models/            # 世界模型 (符号 / 视觉 v3 / Atari / 生长 / 区域)
-├── sleep/                   # 睡眠巩固 + 30 昼夜生存回归
-├── eval/                    # 认知地图 / 生存 / 迁移评估
-├── model/ units/ core/      # 神经元池 / 可塑性机制 / 接口
-└── runs/                    # 实验产物
-```
+</div>
 
-## 复现
+## ✨ Why it matters
+
+| | |
+|:---|:---|
+| 🎯 **Prediction forces structure** | The same network encodes spatial structure at **94.9%** when trained to predict, vs **4.2%** when trained to act |
+| 🌱 **Environment-driven growth works** | Error-driven neurons are **1.47× more functionally critical** than random ones (causal deletion) |
+| ⚖️ **Survival of the fittest** | With a limited brain, growth + pruning keeps a *crack squad*: survivor activation 0.20 → **0.38** (≈ core neurons) |
+| 🗺️ **Cognitive maps emerge without maps** | Path integration localizes at **96.7%** from ambiguous wall-only sensing |
+| 👁️ **Receptive fields self-organize** | Connection-mask learning → spatial tuning (entropy 0.05), no pre-set receptive fields |
+| 💤 **Sleep has boundary conditions** | Fragment replay keeps memory in dynamic worlds; downscaling only helps under capacity pressure |
+| 🏃 **Survives & transfers** | **30 days** in a maze that changes daily, stable across seeds & configs |
+| 🚀 **Zero-architecture-change transfer** | Symbolic → pixel grid → **Atari (Ms. Pac-Man)** — same framework, no changes |
+
+![Results](assets/results.png)
+
+## 🗺️ Domain transfer
+
+![Transfer](assets/transfer.png)
+
+## 🚀 Quick start
 
 ```bash
-# 认知地图 (纯墙感路径积分)
+git clone git@github.com:YangYue3417/goal-directed-structural-plasticity.git
+cd goal-directed-structural-plasticity
+
+# 1. Cognitive map from ambiguous sensing (~15 min)
 python world_models/train_wm_explore.py --sensor walls
 
-# 视觉 v3 (连接掩码学习 → 感受野浮现)
+# 2. Visual receptive fields self-organize (~25 min)
 python world_models/train_wm_image_v3.py --epochs 25
 
-# 生长功能 (误差驱动 vs 随机)
-python world_models/train_wm_growth.py --arm func
-
-# 30 昼夜动态生存
+# 3. 30-day survival in a daily-changing world (~10 min)
 python sleep/test_survival_dynamic.py --days 30
-
-# Atari (Ms. Pac-Man) 世界模型
-python world_models/train_atari_wm.py --n_frames 50000
 ```
 
-## 待办
+*Atari: `pip install gymnasium[atari] ale-py opencv-python-headless`, then `python world_models/train_atari_wm.py`*
 
-- [ ] 驱动力对比: 价值 (学习 V) vs 误差 vs 环境统计 → 哪个产生"删了伤生存"的神经元
-- [ ] 子目标分化: 多目标环境 → 专精神经元一一对应目标 (映射纯度)
-- [ ] 新目标出现 → 新专精跟随 (动态适应)
-- [ ] 语言迁移: 领域流式 → 误差/价值驱动专家 → 删专家领域崩
-- [ ] 多 seed 统计检验 (符号 1.47× / 视觉 +42%)
+## 📚 Learn more
+
+| Doc | Content |
+|:---|:---|
+| **[TECHNICAL.md](docs/TECHNICAL.md)** | Full evidence tables, methods, configs, reproduction |
+| **docs/MASTER_SUMMARY.md** | Complete research narrative & finding chain |
+| **docs/FINDINGS_growth_functional.md** | Center experiments: growth / survival / transfer / cognition |
+| **docs/FINDINGS_world_model.md** | World models, credit assignment, dreaming (M1-M8) |
+
+## 🧩 Architecture
+
+```
+observation (symbolic / image)
+    → encoder (Linear / spatial-CNN)
+    → connection-mask pool (top-k sparse, receptive-field learning) ← grow / prune
+    → GRU integration (cognitive map)
+    → latent prediction + reward prediction
+    → value function + tree search (decision)
+    → sleep consolidation (fragment replay / conditional downscale)
+```
+
+## 🔭 Roadmap
+
+- [ ] Value-driven (learned V) vs error-driven growth — which survives better
+- [ ] Multi-goal environments → 1:1 neuron-goal mapping purity
+- [ ] New goal appears → new specialization follows
+- [ ] LLM transfer: streaming domains → value-driven expert allocation
+- [ ] Multi-seed statistical rigor
+
+## 📄 License
+
+MIT
+
+---
+
+*Importance is not predefined — it emerges from what keeps you alive.*
