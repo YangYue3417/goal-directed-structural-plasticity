@@ -40,22 +40,23 @@ Biological brains specialize: V1 neurons detect edges at specific locations, hip
 **The question that drives this project: how does specialization emerge from experience — and when does it become functional?**
 
 ```
-分工是大脑的真实组织方式
-  → 但神经网络自发涌现分工很难 (专家通才化)
-  → 加容量 ≠ 加功能 (生长常是死容量)
-  → 什么条件让专精涌现且有功能? 环境能诱导吗? 怎么持久?
+division of labor is how brains organize
+  → yet NNs rarely self-organize it (experts collapse into generalists)
+  → more capacity ≠ more function (growth is often dead capacity)
+  → what conditions make specialization emerge & functional?
+  → can the environment induce it? how does it persist?
 ```
 
-## 🔗 The research chain (每步: 问题 → 为什么 → 发现)
+## 🔗 The research chain (question → why → finding)
 
 | # | Question | Why we ran it | Finding |
 |:---:|:---|:---|:---|
-| **P1** | 专精在哪一层? | 280M 块级 MoE 失败 — 是架构问题还是容量问题? | 神经元级 0.855 ≫ 块级 0.202 — **粒度决定专精** |
-| **P2** | 什么训练条件让结构涌现? | 神经元级专精只是记忆 — 功能需要什么? | 预测目标 94.9% vs 策略目标 4.2% — **任务需求决定表征** |
-| **P3** | 环境能诱导生长吗? | 生长是"加容量"还是"有目的"? | 误差驱动 1.47× 关键 (删神经元因果); 连接自适应 → 感受野浮现 |
-| **P4** | 无地图怎么建立空间? | 没有 GPS 的动物如何导航? | 路径积分 96.7% — **认知地图从运动累积涌现** |
-| **P5** | 知识怎么持久? | 动态世界 + 有限脑容量 | 睡眠巩固边界: 片段回放有效, 降标依赖容量; **30 昼夜生存** |
-| **P6** | 机制普适吗? | 是玩具特例还是通用原则? | 符号→视觉→Atari 零改动迁移 — **观测无关** |
+| **P1** | At what level does specialization live? | Block-level MoE failed — architecture or capacity? | Neuron-level 0.855 ≫ block-level 0.202 — **granularity decides specialization** |
+| **P2** | What training condition forces structure? | Neuron-level specialization was memory — what makes it functional? | Prediction 94.9% vs policy 4.2% — **task demand shapes representation** |
+| **P3** | Can the environment induce growth? | Is growth "adding capacity" or "purposeful"? | Error-driven 1.47× more critical (causal deletion); connection adaptation → receptive fields |
+| **P4** | How is space built without a map? | How do animals navigate without GPS? | Path integration 96.7% — **cognitive maps emerge from motion** |
+| **P5** | How does knowledge persist? | Dynamic world + finite brain | Sleep boundaries: fragment replay works, downscaling needs capacity pressure; **30-day survival** |
+| **P6** | Is the mechanism general? | Toy-specific or universal principle? | Symbolic → vision → Atari, zero architecture change — **observation-agnostic** |
 
 ![Results](assets/results.png)
 
@@ -69,13 +70,13 @@ Biological brains specialize: V1 neurons detect edges at specific locations, hip
 git clone git@github.com:YangYue3417/goal-directed-structural-plasticity.git
 cd goal-directed-structural-plasticity
 
-# 1. P4: cognitive map from ambiguous sensing (~15 min)
+# P4: cognitive map from ambiguous sensing (~15 min)
 python world_models/train_wm_explore.py --sensor walls
 
-# 2. P3: visual receptive fields self-organize (~25 min)
+# P3: visual receptive fields self-organize (~25 min)
 python world_models/train_wm_image_v3.py --epochs 25
 
-# 3. P5: 30-day survival in a daily-changing world (~10 min)
+# P5: 30-day survival in a daily-changing world (~10 min)
 python sleep/test_survival_dynamic.py --days 30
 ```
 

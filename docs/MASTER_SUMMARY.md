@@ -89,24 +89,25 @@ E. 环境控制 (MNIST)          P1 比例→方向 ✅; P2 难样本伤记忆 �
 | `papers/grokking_effective_theory.md` (仓库根) | Grokking 论文笔记 |
 | `papers/sleep_consolidation_continual_learning.md` (仓库根) | 睡眠巩固文献定位 |
 
-### 核心脚本
+### 核心脚本 (仓库结构)
 | 文件 | 作用 |
 |------|------|
-| `env/survival_maze.py` | 动态环境 (地图每天变+跨天能量+传感器参数化) |
-| `env/no_map_maze.py` | 无位置观测环境 (strong/weak/walls 传感器) |
-| `env/energy_maze.py` | 能量迷宫 (生存压力) |
-| `train_wm_explore.py` | 去地图世界模型 (GRU+SparseUnit, 多地图通用规律) |
-| `train_wm_growth.py` | 生长三臂 (误差驱动 vs 随机) |
-| `train_wm_region.py` | 区域专精实验 (阶段1 A区 → 阶段2 引入B+区域生长) |
-| `train_v_survival.py` | 多地图价值函数 |
-| `test_survival_dynamic.py` | 30 昼夜生存回归测试 (树规划+V, 做梦模式) |
-| `test_survival_30_days.py` | 静态 30 天回归 (早期) |
-| `eval_wm_explore.py` | 认知地图评估 (固定地图参照系) |
-| `eval_survival_robust.py` | 稳定性+迁移批量测试 |
-| `eval_wm_probe.py` / `eval_wm_seq_probe.py` | 隐状态探针 |
-| `train_dream.py` / `train_dream_cycle.py` | 做梦实验 (M7/M8) |
-| `train_td_credit.py` | TD 信用分配 (M6b) |
-| `train_wm_energy.py` | 能量世界模型+价值+规划 (M6) |
+| `envs/survival_maze.py` | 动态环境 (地图每天变+跨天能量+传感器参数化) |
+| `envs/no_map_maze.py` | 无位置观测环境 (strong/weak/walls 传感器) |
+| `envs/energy_maze.py` | 能量迷宫 (生存压力) |
+| `world_models/train_wm_explore.py` | 去地图世界模型 (GRU+池, 多地图通用规律) |
+| `world_models/train_wm_growth.py` | 生长三臂 (误差驱动 vs 随机) |
+| `world_models/train_wm_region.py` | 区域专精实验 |
+| `world_models/train_v_survival.py` | 多地图价值函数 |
+| `world_models/train_wm_image_v3.py` | 视觉 v3: 连接掩码学习 (感受野浮现) |
+| `world_models/train_atari_wm.py` | Atari 世界模型 (Ms. Pac-Man) |
+| `sleep/test_survival_dynamic.py` | 30 昼夜生存回归测试 |
+| `sleep/test_survival_30_days.py` | 静态 30 天回归 (早期) |
+| `sleep/train_dream.py` / `train_dream_cycle.py` | 做梦实验 (M7/M8) |
+| `sleep/train_td_credit.py` | TD 信用分配 (M6b) |
+| `eval/eval_wm_explore.py` | 认知地图评估 |
+| `eval/eval_survival_robust.py` | 稳定性+迁移批量测试 |
+| `config.py` | 统一配置中心 (校准/模型/训练/生长) |
 
 ### 关键模型产物 (runs/)
 - `wm_explore_strong.pt` — 强传感器世界模型 (14维)
@@ -129,14 +130,19 @@ E. 环境控制 (MNIST)          P1 比例→方向 ✅; P2 难样本伤记忆 �
 
 ---
 
-## 六、待办
+## 六、待办 (2026-08-15 更新)
+
+已完成: ✅ 视觉网格世界 (八) ✅ Atari 最小验证 (十二) ✅ 优胜劣汰 (十一)
 
 | 优先级 | 任务 | 备注 |
 |:---:|------|------|
-| P1 | 更强区域差异实验 (B区食物负奖励=危险区) | 区域专精最后尝试 |
-| P2 | 视觉网格世界 (CNN+latent 世界模型) | 理论验证图像迁移 |
-| P3 | Atari (Ms. Pac-Man 优先) | DreamerV3 级工程, gymnasium[atari] |
-| P4 | 论文整合 | 核心叙事: 预测强迫结构 + 生长功能 + 睡眠边界 |
+| P1 | 驱动力对比: 学习V vs 误差 vs 环境统计 → 哪个产生"删了伤生存"的神经元 | 生存导向专精的完整验证 |
+| P1 | 多 seed 统计检验 (符号 1.47× / 视觉 +42%) | 论文级证据 |
+| P2 | 子目标分化: 多目标环境 → 专精神经元一一对应 (映射纯度) | |
+| P2 | 新目标出现 → 新专精跟随 (动态适应) | 补强区域实验 |
+| P3 | 更强区域差异 (危险区/毒食物) | 区域专精最后尝试 |
+| P3 | Atari 决策层 (V+规划/PPO) + 生长臂 | 实际玩游戏 |
+| P4 | 论文整合 | 核心叙事: 睡眠巩固边界 + 生长功能 + 认知双系统 |
 
 ---
 
@@ -161,7 +167,10 @@ E. 环境控制 (MNIST)          P1 比例→方向 ✅; P2 难样本伤记忆 �
 **结论**: 机制 (世界模型/认知地图) 在图像观测下成立; 架构观测无关。
 下一步: 更小视野 (3×3, 积分有任务) / 视觉下生长 / 视觉下生存。
 
-## 九、视觉下生长 — 未复现 (诚实负结果 ⚠️)
+## 九、视觉下生长 (v2 池) — 未复现 (诚实负结果 ⚠️)
+
+> 注: 本节是 **v2 架构** (全连接池) 的结果。v3 (连接掩码池) 修复后见
+> 第十节, 加淘汰机制后见第十一节 — 生长验证最终在 v3+淘汰 下成立。
 
 图像世界模型 + SparseUnit 池 (top-k 64/512), func/rand 各生长 60 个,
 删 30 个 → 位置解码下降:
