@@ -35,15 +35,15 @@ flowchart TD
 
 ## 🧭 Why this research
 
-Classical MoE splits experts when *conflict* saturates — but a 280M model trained this way produced **generalist experts**: no division of labor ever emerged. The conflict signal said "not enough experts," yet adding more changed nothing. The real diagnosis turned out to be granularity, not capacity.
+Biological brains specialize: V1 neurons detect edges at specific locations, hippocampal cells encode places, and circuits rewire as the environment demands. Neural networks — despite being inspired by them — rarely *self-organize* such division of labor. Mixture-of-Experts models assume it, but in practice experts often collapse into generalists. Growing networks add capacity, but the new capacity is rarely *functional*.
 
-**The question that drives this project: how does specialization actually emerge — and when does it become functional?**
+**The question that drives this project: how does specialization emerge from experience — and when does it become functional?**
 
 ```
-块级 MoE 专家通才 (conflict 饱和, 加容量无效)
-   → 专精不是块级结构, 是神经元级现象
-   → 但神经元级专精只是"记忆分区", 不是"功能"
-   → 什么条件让它有功能? 环境能诱导吗? 怎么持久?
+分工是大脑的真实组织方式
+  → 但神经网络自发涌现分工很难 (专家通才化)
+  → 加容量 ≠ 加功能 (生长常是死容量)
+  → 什么条件让专精涌现且有功能? 环境能诱导吗? 怎么持久?
 ```
 
 ## 🔗 The research chain (每步: 问题 → 为什么 → 发现)
