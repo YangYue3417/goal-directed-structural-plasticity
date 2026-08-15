@@ -23,14 +23,14 @@ from envs.maze_nav import MazeNav, DIRS
 class NoMapMaze(MazeNav):
     def __init__(self, size=20, n_foods=3, seed=42, E0=100.0,
                  step_cost=0.5, food_restore=80.0, death_reward=-10.0,
-                 sensor="strong"):
+                 sensor="strong", odor_sigma=None):
         self.sensor = sensor
         self.E0 = E0
         self.step_cost = step_cost
         self.food_restore = food_restore
         self.death_reward = death_reward
         self.energy = E0
-        self.odor_sigma = 15.0 if sensor == "strong" else 5.0
+        self.odor_sigma = odor_sigma if odor_sigma is not None else (15.0 if sensor == "strong" else 5.0)
         super().__init__(size=size, n_foods=n_foods, seed=seed)
 
     def reset(self):

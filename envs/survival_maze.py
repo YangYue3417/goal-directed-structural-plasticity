@@ -23,7 +23,7 @@ from envs.no_map_maze import NoMapMaze, DIRS
 class SurvivalMaze(NoMapMaze):
     def __init__(self, size=20, n_foods=3, seed=42, E0=100.0,
                  step_cost=1.0, food_restore=60.0, death_reward=-10.0,
-                 day_steps=150, wall_density=0.10, sensor="strong"):
+                 day_steps=150, wall_density=0.10, sensor="strong", odor_sigma=None):
         self.E0 = E0
         self.step_cost = step_cost
         self.food_restore = food_restore
@@ -34,7 +34,7 @@ class SurvivalMaze(NoMapMaze):
         self.day = 0
         self._day_seed = seed
         self.energy = E0
-        self.odor_sigma = 15.0 if sensor == "strong" else 5.0
+        self.odor_sigma = odor_sigma if odor_sigma is not None else (15.0 if sensor == "strong" else 5.0)
         # 直接构造 (不调 MazeNav.__init__ 的默认 _build)
         self.size = size
         self.n_foods = n_foods
