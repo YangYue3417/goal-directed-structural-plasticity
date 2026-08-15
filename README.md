@@ -10,7 +10,26 @@ Driven by value signals that emerge from experience (not pre-defined importance)
 
 ---
 
-![Framework](assets/framework.png)
+```mermaid
+flowchart TD
+    G[Survival Goals<br/>foraging · navigation · prediction · vision]
+    V[Value Signals<br/>learned V · usage frequency · prediction error]
+    S[Structural Growth<br/>split · recruit · connect-adapt · prune]
+    N[Specialized Neurons<br/>{E1, E2, ...} — each serves a sub-goal]
+    C[Causal Validation<br/>delete Ei → goal i collapses · transfer test]
+
+    G -->|defines| V
+    V -->|triggers| S
+    S -->|produces| N
+    N -->|verified by| C
+    C -.->|new goals emerge| G
+
+    style G fill:#2E5AAC,color:#fff
+    style V fill:#2E7D46,color:#fff
+    style S fill:#B3392F,color:#fff
+    style N fill:#6C4AA6,color:#fff
+    style C fill:#A87F2E,color:#fff
+```
 
 </div>
 
