@@ -105,15 +105,15 @@ observation (symbolic / image)
 
 ## 🌐 Future: world-model learning & explaining functional clustering
 
-**应用 — 在世界模型中学习规律。** World models are a frontier direction (Dreamer, Genie, JEPA) for robots, autonomous driving, and increasingly LLMs. Our framework adds what they lack: **structure that adapts to goals**. Capacity is not fixed — it grows where value signals point, and connection masks self-organize into functional units. In an LLM context, where *data = environment* and *training objective = survival*, this maps to value-driven expert allocation and goal-aligned capacity.
+**Application — learning regularities inside a world model.** World models are a frontier direction (Dreamer, Genie, JEPA) for robots, autonomous driving, and increasingly LLMs. Our framework adds what they lack: **structure that adapts to goals**. Capacity is not fixed — it grows where value signals point, and connection masks self-organize into functional units. In an LLM context, where *data = environment* and *training objective = survival*, this maps to value-driven expert allocation and goal-aligned capacity.
 
-**科学 — 解释神经元的"功能性聚类"。** Neuroscience observes that neurons cluster by function: V1 cells tuned to edges at specific locations, hippocampal place cells, even induction heads in LLMs. This project reproduces the *mechanism* behind such clustering:
+**Science — explaining why neurons cluster functionally.** Neuroscience observes that neurons cluster by function: V1 cells tuned to edges at specific locations, hippocampal place cells, even induction heads in LLMs. This project reproduces the *mechanism* behind such clustering:
 
 ```
-预测任务 → 位置调谐神经元 (隐状态解码 94.9%)
-连接掩码 → 空间感受野 (熵 0.05)
-误差驱动 → 功能关键神经元 (删了目标崩)
-环境统计 → 转换类型专精 (墙/食物/空检测器)
+prediction task   → position-tuned neurons  (hidden-state decode 94.9%)
+connection masks  → spatial receptive fields (entropy 0.05)
+error-driven growth → functionally critical neurons (deletion collapses the goal)
+environment stats → transition-type specialists (wall / food / open detectors)
 ```
 
 **Functional clustering is not an assumption — it is a consequence of what the network must predict.**
