@@ -25,7 +25,45 @@ import torch.nn.functional as F
 sys.path.insert(0, str(Path(__file__).parent))
 
 import config as cfg
-from train_gdsp import GDSPModel, ValueNet, grow_hard, prune, mpc_act
+from train_gdsp import ValueNet, grow_hard, prune, mpc_act
+from units.sparse_unit import SparseUnit
+
+
+class DeltaWM(torch.nn.Module):
+    """Δ 残差预测世界模型: 预测状态变化 (s'-s) 而非绝对 s'。
+
+    连续高速动力学 (Walker) 中, 预测偏移比绝对位置容易得多。"""
+    def __init__(self, obs_dim=24, act_dim=4, d=64, pool=512, top_k=64,
+                 hidden=128, active_ratio=0.25):
+        super().__init__()
+        self.obs_dim, self.act_dim = obs_dim, act_dim
+        self.embed = torch.nn.Linear(obs_dim + act_dim, d)
+        self.unit = SparseUnit(d_model=d, d_pool=pool, top_k=top_k)
+        self.unit.register_buffer("active_mask",
+                                  torch.zeros(pool, dtype=torch.bool))
+        self.unit.active_mask[:int(pool * active_ratio)] = True
+        self.unit.register_buffer("act_rate", torch.zeros(pool))
+        self.unit.register_buffer("_load_ema", torch.zeros(pool))
+        self.growth_log = []
+        self.net = torch.nn.Sequential(torch.nn.Linear(d, hidden), torch.nn.ReLU())
+        self.head_d = torch.nn.Linear(hidden, obs_dim)  # Δ 预测
+        self.head_r = torch.nn.Linear(hidden, 1)
+
+    def forward(self, obs, act):
+        B = obs.shape[0]
+        sa = torch.cat([obs, act], -1)
+        z = torch.tanh(self.embed(sa))
+        z_pool, ps = self.unit(z.unsqueeze(1))
+        h = self.net(z_pool.squeeze(1))
+        delta = self.head_d(h)
+        s_pred = obs + delta  # s' = s + Δ
+        r_pred = self.head_r(h).squeeze(-1)
+        with torch.no_grad():
+            onehot = torch.zeros(self.unit.d_pool, device=obs.device)
+            onehot[ps.selected[0, 0]] = 1.0
+            self.unit.act_rate = 0.999 * self.unit.act_rate + 0.001 * onehot
+            self.unit._load_ema = 0.99 * self.unit._load_ema + 0.01 * ps.load.mean(0)
+        return s_pred, r_pred, ps.selected
 
 
 def is_safe(obs):
@@ -48,14 +86,30 @@ def random_collect(env, n_steps=20000, seed=42):
             np.array(R, np.float32), np.array(Sn, np.float32))
 
 
-def survive_collect(model, V, env, n_steps=20000, device="cuda"):
+def delta_mpc_act(model, V, obs, n_samples=200, device="cuda"):
+    """ΔWM 采样 MPC: 评分 = V(预测安全状态)。"""
+    rng = np.random.RandomState()
+    acts = rng.uniform(-1, 1, (n_samples, 4)).astype(np.float32)
+    obs_t = torch.from_numpy(np.tile(obs, (n_samples, 1))).float().to(device)
+    act_t = torch.from_numpy(acts).float().to(device)
+    with torch.no_grad():
+        sp, rp, _ = model(obs_t, act_t)
+        score = 0.95 * V(sp)
+    return acts[int(score.argmax().item())]
+
+
+def survive_collect(model, V, env, n_steps=20000, device="cuda", eps=0.1):
     """MPC 控制持续生存, 跌倒重生。返回 episodes。"""
+    rng = np.random.RandomState(0)
     episodes = []
     obs, _ = env.reset()
     ep = []
     max_ep = 1600  # Walker 环境截断
     while True:
-        a = mpc_act(model, V, obs, 24, 4, False, device=device)
+        if rng.rand() < eps:
+            a = rng.uniform(-1, 1, 4).astype(np.float32)
+        else:
+            a = delta_mpc_act(model, V, obs, device=device)
         o2, r, d, _, _ = env.step(a)
         ep.append((obs, a, r, o2))
         obs = o2
@@ -128,7 +182,7 @@ def dream(model, episodes, n_passes=3, lr=1e-4, L=20, device="cuda"):
             A = np.array([t[1] for t in seg], np.float32)
             R = np.array([t[2] for t in seg], np.float32)
             Sn = np.array([t[3] for t in seg], np.float32)
-            sp, rp, zp, _, _ = model(torch.from_numpy(S).to(device),
+            sp, rp, _ = model(torch.from_numpy(S).to(device),
                                      torch.from_numpy(A).to(device))
             loss = F.mse_loss(sp, torch.from_numpy(Sn).to(device))                    + 0.5 * F.mse_loss(rp, torch.from_numpy(R).to(device))
             opt.zero_grad(); loss.backward(); opt.step()
@@ -148,7 +202,7 @@ def main():
 
     import gymnasium as gym
     env = gym.make('BipedalWalker-v3')
-    model = GDSPModel(24, 4).to(device)
+    model = DeltaWM(24, 4).to(device)
     opt = torch.optim.AdamW(model.parameters(), lr=1e-3)
 
     def train_wm(S, A, R, Sn, epochs):
@@ -159,7 +213,7 @@ def main():
         for ep in range(epochs):
             model.train()
             idx = torch.randperm(len(S))[:8192]
-            sp, rp, zp, _, sel = model(s_t[idx], a_t[idx])
+            sp, rp, sel = model(s_t[idx], a_t[idx])
             loss = F.mse_loss(sp, sn_t[idx]) + 0.5 * F.mse_loss(rp, r_t[idx])
             opt.zero_grad(); loss.backward(); opt.step()
             if ep % 20 == 19 and len(model.growth_log) < 60:
@@ -170,14 +224,17 @@ def main():
     S0, A0, R0, Sn0 = random_collect(env, args.steps_per_round)
     train_wm(S0, A0, R0, Sn0, args.train_epochs)
     V = train_v_surv([list(zip(S0, A0, R0, Sn0))], device=device)
+    buffer = [S0, A0, R0, Sn0]
 
     print("=== SR 自举循环 (V=安全访问, 无奖励) ===", flush=True)
     for rnd in range(1, args.rounds + 1):
         (S, A, R, Sn), episodes = survive_collect(model, V, env,
                                                    args.steps_per_round, device)
         avg_len = np.mean([len(e) for e in episodes])
-        # 白天: 世界模型训练 (含难样本生长)
-        train_wm(S, A, R, Sn, args.train_epochs)
+        # 混合 buffer (旧+新, 防遗忘 + 数据累积)
+        buffer = [np.concatenate([b, x]) for b, x in zip(buffer, [S, A, R, Sn])]
+        # 白天: 世界模型训练 (混合 buffer + 难样本生长)
+        train_wm(*[x[-60000:] for x in buffer], args.train_epochs)
         # 夜晚: 做梦 (生存优先片段回放) — 强化好结构, 淘汰坏神经元
         n_prune = prune(model, 0.005)
         dream(model, episodes, device=device)
