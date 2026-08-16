@@ -109,6 +109,8 @@ def main():
                 per_err = (sp - Y[idx]).pow(2).mean(-1).mean(0)  # (L,)
                 t_hard = int(per_err.argmax())
                 n_grow_total += model.pool.grow(sel[:, t_hard])
+            if hasattr(model.pool, "settle_babies"):
+                model.pool.settle_babies(age_thresh=800.0, rate_thresh=0.01)
 
         # 评估: 总误差 + 切换时刻误差 + 非切换误差
         model.eval()

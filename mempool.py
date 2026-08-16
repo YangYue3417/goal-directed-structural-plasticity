@@ -36,6 +36,10 @@ class MemPool(nn.Module):
         self.growth_log = []
         self._source = None          # 生长克隆的源神经元
         self._growth_phase = []      # 生长时的 τ 值 (相位分工证据)
+        # 新生神经元 (baby): 生长→试探→连接
+        self.register_buffer("baby_mask", torch.zeros(d_pool, dtype=torch.bool))
+        self.register_buffer("baby_age", torch.zeros(d_pool))
+        self.register_buffer("baby_rate", torch.zeros(d_pool))  # 试探期激活率
 
     def tau(self):
         return torch.exp(self.tau_log).clamp(1.5, 100.0)
@@ -55,22 +59,39 @@ class MemPool(nn.Module):
         tau = self.tau().unsqueeze(0)          # (1, pool)
         leak = 1.0 - 1.0 / tau                  # (1, pool)
         am = self.active_mask.to(self.W_in.device)
+        baby = self.baby_mask.to(self.W_in.device)
+        p_explore = 0.3   # 试探: 强制激活概率
         outs, sels = [], []
         for t in range(T):
             z = z_seq[:, t]
             self.vm = self.vm * leak + z @ self.W_in.t()
             pre = self.vm.masked_fill(~am.unsqueeze(0), -1e9)
+            # 试探: baby 神经元以概率强制进入 top-k 探测 (低权重)
+            if baby.any():
+                explore = torch.rand(B, baby.sum().item(),
+                                     device=pre.device) < p_explore
+                b_idx = baby.nonzero().flatten()
+                pre_b = pre[:, b_idx]
+                pre_b = pre_b.masked_fill(~explore, -1e9)
+                pre[:, b_idx] = torch.maximum(pre[:, b_idx], pre_b)
             vals, idx = pre.topk(self.top_k, dim=1)          # (B, K)
             sparse = torch.zeros_like(pre)
-            sparse.scatter_(1, idx, F.gelu(vals))
+            # baby 输出用低权重 (试探不主导)
+            w_scale = torch.where(baby, torch.full_like(baby, 0.3),
+                                  torch.ones_like(baby))
+            sparse.scatter_(1, idx, F.gelu(vals) * w_scale[idx])
             outs.append(sparse @ self.W_out.t())
             sels.append(idx)
-            # 激活率 (电位激活, 含记忆参与)
+            # 激活率 + baby 年龄/激活
             with torch.no_grad():
                 oh = torch.zeros(B, self.d_pool, device=pre.device)
                 oh.scatter_(1, idx, 1.0)
                 self.act_rate = 0.999 * self.act_rate.to(pre.device) \
                                 + 0.001 * oh.mean(0)
+                if baby.any():
+                    self.baby_age[baby] += 1.0
+                    self.baby_rate[baby] = 0.99 * self.baby_rate[baby] \
+                                           + 0.01 * oh.mean(0)[baby]
         return torch.stack(outs, 1), torch.stack(sels, 1)
 
     def grow(self, sel_hard, perturb=0.15, n=2):
@@ -90,17 +111,39 @@ class MemPool(nn.Module):
         if n_grow == 0:
             return 0
         with torch.no_grad():
-            for i, (src, tgt) in enumerate(zip(cand, inactive[:n_grow])):
+            for src, tgt in zip(cand, inactive[:n_grow]):
                 src, tgt = int(src), int(tgt)
-                self.W_in.data[tgt] = self.W_in.data[src] \
-                    + perturb * torch.randn_like(self.W_in.data[src])
-                self.W_out.data[:, tgt] = self.W_out.data[:, src]
-                self.tau_log.data[tgt] = self.tau_log.data[src]  # 继承 τ
+                # 生长→试探→连接: 弱初始化 (不完全继承), 电位零, τ 发展
+                self.W_in.data[tgt] = 0.5 * self.W_in.data[src] \
+                    + 0.3 * torch.randn_like(self.W_in.data[src])
+                self.W_out.data[:, tgt] = 0.5 * self.W_out.data[:, src] \
+                    + 0.3 * torch.randn_like(self.W_out.data[:, src])
+                self.tau_log.data[tgt] = self.tau_log.data[src] \
+                    * (0.7 + 0.6 * torch.rand(()).item())  # 发展自己的 τ
                 self.active_mask[tgt] = True
+                self.baby_mask[tgt] = True                  # 试用期
+                self.baby_age[tgt] = 0.0
+                self.baby_rate[tgt] = 0.0
+                self.vm[:, tgt] = 0.0                       # 电位从零
                 self.growth_log.append(tgt)
                 self._source = src
                 self._growth_phase.append(float(self.tau()[tgt]))
         return n_grow
+
+    def settle_babies(self, age_thresh=400.0, rate_thresh=0.01):
+        """试探期结束: 激活达标 → 巩固 (转正式); 不达标 → 剪枝淘汰。"""
+        done = self.baby_mask & (self.baby_age >= age_thresh)
+        if not done.any():
+            return 0, 0
+        good = done & (self.baby_rate >= rate_thresh)
+        bad = done & ~good
+        with torch.no_grad():
+            # 巩固: 权重恢复全量 (结束试探期低权重)
+            self.baby_mask[good] = False
+            # 淘汰: 剪枝回收
+            self.active_mask[bad] = False
+            self.baby_mask[bad] = False
+        return int(good.sum().item()), int(bad.sum().item())
 
     def prune(self, threshold=0.005):
         """淘汰: 激活率低的神经元回收 (含生长神经元)。"""
