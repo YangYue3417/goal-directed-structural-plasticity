@@ -64,6 +64,24 @@ The research chain — each step asks *why*:
 
 ![Transfer](assets/transfer.png)
 
+## 🧩 Architecture: one entry, components guaranteed
+
+A single entry point (`train_gdsp.py`) makes **growth, pruning, and consolidation required runtime components** — migrating to a new domain means swapping the environment, never re-assembling the framework:
+
+```
+train_gdsp(env_fn, obs_dim, act_dim)      # swap env to transfer
+    → world model (connection-mask pool)  # backbone
+    → growth (error-driven)               # automatic, required
+    → pruning (usage-based)               # automatic, required
+    → consolidation (fragment replay)     # automatic, required
+    → decision (learned V + MPC)          # pure framework, no external RL
+```
+
+| Domain | Obs → Action | Result |
+|:---|:---|:---|
+| CartPole | 4-dim → discrete 2 | world model 0.0046, MPC beats random |
+| Walker | 24-dim joints → continuous 4 | growth auto-attached (14 neurons); exploration-bound |
+
 ## ⚠️ Limitations
 
 Honest boundaries of this work:
@@ -112,6 +130,10 @@ python world_models/train_wm_image_v3.py --epochs 25
 
 # P5: 30-day survival in a daily-changing world (~10 min)
 python sleep/test_survival_dynamic.py --days 30
+
+# Unified entry: growth/pruning automatic — swap env to transfer
+python train_gdsp.py --env cartpole   # 4-dim state, discrete action
+python train_gdsp.py --env walker     # 24-dim joints, continuous action
 ```
 
 *Atari: `pip install gymnasium[atari] ale-py opencv-python-headless`, then `python world_models/train_atari_wm.py`*

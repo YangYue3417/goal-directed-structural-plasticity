@@ -59,6 +59,16 @@
 
 ## 2. 方法
 
+### 2.0 统一入口 (迁移正确性保障)
+
+`train_gdsp.py`: 生长/淘汰/睡眠是**必需运行时组件** (自动执行),
+迁移新任务只换环境+观测 — 避免手动组装漏组件 (CartPole/Walker 迁移教训)。
+
+```bash
+python train_gdsp.py --env cartpole   # 纯框架: 世界模型+生长+淘汰+学习V+MPC
+python train_gdsp.py --env walker     # 生长自动接入 (14 个), 探索不足是数据问题
+```
+
 ### 2.1 世界模型
 
 ```
