@@ -62,6 +62,7 @@ class MemPool(nn.Module):
         baby = self.baby_mask.to(self.W_in.device)
         p_explore = 0.3   # 试探: 强制激活概率
         outs, sels = [], []
+        self._shadow = []
         for t in range(T):
             z = z_seq[:, t]
             self.vm = self.vm * leak + z @ self.W_in.t()
@@ -82,6 +83,16 @@ class MemPool(nn.Module):
             sparse.scatter_(1, idx, F.gelu(vals) * w_scale[idx])
             outs.append(sparse @ self.W_out.t())
             sels.append(idx)
+            # shadow: 储备神经元 (未激活) top-k → 方向塑造 (暗中学习)
+            reserve = ~am & ~baby
+            if reserve.any():
+                r_idx = reserve.nonzero().flatten()
+                pre_r = self.vm[:, r_idx]
+                r_k = min(self.top_k, r_idx.numel())
+                vals_r, idx_r = pre_r.topk(r_k, dim=1)
+                sh_r = torch.zeros(B, r_idx.numel(), device=pre.device)
+                sh_r.scatter_(1, idx_r, F.gelu(vals_r))
+                self._shadow.append(sh_r)
             # 激活率 + baby 年龄/激活
             with torch.no_grad():
                 oh = torch.zeros(B, self.d_pool, device=pre.device)
@@ -92,7 +103,35 @@ class MemPool(nn.Module):
                     self.baby_age[baby] += 1.0
                     self.baby_rate[baby] = 0.99 * self.baby_rate[baby] \
                                            + 0.01 * oh.mean(0)[baby]
+        # 打包 shadow (B,T,reserve) + 记录储备索引
+        if self._shadow:
+            self.shadow_stack = torch.stack(self._shadow, 1)
+            self.reserve_idx = (~self.active_mask & ~self.baby_mask)                 .nonzero().flatten()
+        else:
+            self.shadow_stack = None
         return torch.stack(outs, 1), torch.stack(sels, 1)
+
+    def dream_grow(self, shadow_sel_hard, n=2):
+        """做梦生长: 激活储备神经元中对难样本 shadow 预测最好的。
+
+        shadow_sel_hard: (B,) 储备池内 top-k 索引 (难样本时刻)
+        """
+        if self.shadow_stack is None or len(self.reserve_idx) == 0:
+            return 0
+        cnt = torch.zeros(len(self.reserve_idx), device=shadow_sel_hard.device)
+        for row in shadow_sel_hard.flatten():
+            cnt[row] += 1
+        cand = torch.argsort(cnt, descending=True)[:n]
+        cand = cand[torch.tensor(
+            [self.active_mask[i].item() for i in
+             self.reserve_idx[cand].cpu()]) == False]
+        n_grow = min(len(cand), 2)
+        with torch.no_grad():
+            for i in cand[:n_grow]:
+                tgt = int(self.reserve_idx[i])
+                self.active_mask[tgt] = True
+                self.growth_log.append(tgt)
+        return n_grow
 
     def grow(self, sel_hard, perturb=0.15, n=2):
         """难样本定向生长: 克隆难样本激活的神经元 (权重+τ)。
@@ -175,6 +214,7 @@ class StaticPool(nn.Module):
         B, T, D = z_seq.shape
         am = self.active_mask.to(self.W_in.device)
         outs, sels = [], []
+        self._shadow = []
         for t in range(T):
             z = z_seq[:, t]
             pre = (z @ self.W_in.t()).masked_fill(~am.unsqueeze(0), -1e9)
@@ -188,7 +228,35 @@ class StaticPool(nn.Module):
                 oh.scatter_(1, idx, 1.0)
                 self.act_rate = 0.999 * self.act_rate.to(pre.device) \
                                 + 0.001 * oh.mean(0)
+        # 打包 shadow (B,T,reserve) + 记录储备索引
+        if self._shadow:
+            self.shadow_stack = torch.stack(self._shadow, 1)
+            self.reserve_idx = (~self.active_mask & ~self.baby_mask)                 .nonzero().flatten()
+        else:
+            self.shadow_stack = None
         return torch.stack(outs, 1), torch.stack(sels, 1)
+
+    def dream_grow(self, shadow_sel_hard, n=2):
+        """做梦生长: 激活储备神经元中对难样本 shadow 预测最好的。
+
+        shadow_sel_hard: (B,) 储备池内 top-k 索引 (难样本时刻)
+        """
+        if self.shadow_stack is None or len(self.reserve_idx) == 0:
+            return 0
+        cnt = torch.zeros(len(self.reserve_idx), device=shadow_sel_hard.device)
+        for row in shadow_sel_hard.flatten():
+            cnt[row] += 1
+        cand = torch.argsort(cnt, descending=True)[:n]
+        cand = cand[torch.tensor(
+            [self.active_mask[i].item() for i in
+             self.reserve_idx[cand].cpu()]) == False]
+        n_grow = min(len(cand), 2)
+        with torch.no_grad():
+            for i in cand[:n_grow]:
+                tgt = int(self.reserve_idx[i])
+                self.active_mask[tgt] = True
+                self.growth_log.append(tgt)
+        return n_grow
 
     def grow(self, sel_hard, perturb=0.15, n=2):
         inactive = (~self.active_mask).nonzero().flatten()
