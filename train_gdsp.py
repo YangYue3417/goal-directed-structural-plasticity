@@ -75,7 +75,7 @@ class GDSPModel(nn.Module):
             onehot[ps.selected[0, 0]] = 1.0
             self.unit.act_rate = 0.999 * self.unit.act_rate + 0.001 * onehot
             self.unit._load_ema = 0.99 * self.unit._load_ema + 0.01 * ps.load.mean(0)
-        return s_pred, r_pred, z_next, h
+        return s_pred, r_pred, z_next, h, ps.selected
 
 
 # ---------------------------------------------------------------------------
@@ -103,6 +103,30 @@ def grow(model, perturb=0.1, n=2):
 # ---------------------------------------------------------------------------
 # 淘汰 (用进废退): 低激活率生长神经元回收
 # ---------------------------------------------------------------------------
+def grow_hard(model, sel_hard, perturb=0.1, n=2):
+    """难样本定向生长: 克隆预测误差最大样本激活的神经元。
+    → 生长自动聚集在难预测状态 (如临界平衡态), 而非全局随机。"""
+    unit = model.unit
+    inactive = (~unit.active_mask).nonzero().flatten()
+    if len(inactive) == 0:
+        return 0
+    cnt = torch.zeros(unit.d_pool, device=unit.W1.device)
+    for row in sel_hard:
+        cnt[row] += 1
+    active = unit.active_mask
+    cand = torch.argsort(cnt * active.float(), descending=True)[:n * 2]
+    cand = cand[active[cand]][:n]
+    n_grow = min(len(cand), len(inactive))
+    with torch.no_grad():
+        for src_i, tgt in zip(cand, inactive[:n_grow]):
+            unit.W1.data[:, tgt] = unit.W1.data[:, src_i] + perturb * torch.randn_like(unit.W1.data[:, src_i])
+            unit.W2.data[tgt, :] = unit.W2.data[src_i, :] + perturb * torch.randn_like(unit.W2.data[src_i, :])
+            unit.b1.data[tgt] = unit.b1.data[src_i]
+            unit.active_mask[tgt] = True
+            model.growth_log.append(int(tgt))
+    return n_grow
+
+
 def prune(model, thr=0.005):
     pool = model.unit
     n_init = 128
@@ -137,7 +161,7 @@ def train_gdsp(collect, obs_dim, act_dim, discrete=True, epochs=150,
     for ep in range(epochs):
         model.train()
         idx = torch.randperm(n)[:8192]
-        sp, rp, zp, _ = model(s_t[idx], a_t[idx])
+        sp, rp, zp, _, sel = model(s_t[idx], a_t[idx])
         loss = F.mse_loss(sp, sn_t[idx]) + 0.5 * F.mse_loss(rp, r_t[idx]) \
                + 0.1 * F.mse_loss(zp, model.embed(torch.cat([s_t[idx], a_t[idx]], -1)).detach())
         opt.zero_grad(); loss.backward(); opt.step()
@@ -147,11 +171,14 @@ def train_gdsp(collect, obs_dim, act_dim, discrete=True, epochs=150,
         if step % grow_every == 0:
             n_prune = prune(model, prune_thr)
             if len(model.growth_log) < max_grow:
-                grow(model)
+                # 难样本定向生长: 预测误差最大的样本激活的神经元
+                per_err = (sp - sn_t[idx]).pow(2).mean(-1)
+                hard_idx = int(per_err.argmax().item())
+                grow_hard(model, sel[hard_idx])
         if ep % 30 == 29:
             model.eval()
             with torch.no_grad():
-                sp, _, _, _ = model(s_t[:2000], a_t[:2000])
+                sp, _, _, _, _ = model(s_t[:2000], a_t[:2000])
                 err = F.mse_loss(sp, sn_t[:2000]).item()
             print(f"  ep {ep+1}: loss={loss.item():.4f} 预测={err:.4f} "
                   f"生长{len(model.growth_log)} 激活{int(model.unit.active_mask.sum())}",
@@ -172,18 +199,38 @@ class ValueNet(nn.Module):
         return self.net(s).squeeze(-1)
 
 
-def train_value(model, collect, obs_dim, act_dim, discrete, device="cuda",
-                epochs=150):
-    """学习 V: 从经验 MC 回报 (混合数据覆盖)。"""
-    S, A, R, Sn = collect()
+def train_value(env_fn, obs_dim, act_dim, discrete, device="cuda", epochs=200,
+                gamma=0.95, seed=7):
+    """学习 V: 从经验轨迹算 MC 回报 (混合策略覆盖, 非单步近似)。"""
+    import gymnasium as gym
+    env = env_fn()
+    rng = np.random.RandomState(seed)
+    X, G = [], []
+    for ep in range(200):
+        obs, _ = env.reset()
+        traj = []
+        for _ in range(100):
+            if discrete:
+                a = int(rng.randint(act_dim))
+            else:
+                a = rng.uniform(-1, 1, act_dim).astype(np.float32)
+            obs_next, r, done, _, _ = env.step(a)
+            traj.append((obs, r))
+            obs = obs_next
+            if done:
+                break
+        g = 0.0
+        for s, r in reversed(traj):
+            g = r + gamma * g
+            X.append(s); G.append(g)
+    env.close()
     V = ValueNet(obs_dim).to(device)
     opt = torch.optim.AdamW(V.parameters(), lr=1e-3)
-    # 简化: 用 (s, r) 回归 (MC 近似)
-    idx = np.random.RandomState(0).choice(len(S), min(20000, len(S)), replace=False)
-    X = torch.from_numpy(S[idx]).float().to(device)
-    G = torch.from_numpy(R[idx]).float().to(device)
+    Xt = torch.from_numpy(np.array(X, np.float32)).to(device)
+    Gt = torch.from_numpy(np.array(G, np.float32)).to(device)
     for ep in range(epochs):
-        loss = F.mse_loss(V(X), G)
+        idx = torch.randperm(len(Xt))[:4096]
+        loss = F.mse_loss(V(Xt[idx]), Gt[idx])
         opt.zero_grad(); loss.backward(); opt.step()
     return V
 
@@ -197,7 +244,7 @@ def mpc_act(model, V, obs, obs_dim, act_dim, discrete, n_samples=200, device="cu
             for a in range(act_dim):
                 obs_t = torch.from_numpy(obs[None]).float().to(device)
                 act_t = torch.from_numpy(np.eye(act_dim)[a][None]).float().to(device)
-                sp, rp, _, _ = model(obs_t, act_t)
+                sp, rp, _, _, _ = model(obs_t, act_t)
                 score = rp.item() + 0.95 * V(sp[0]).item()
                 if score > best:
                     best, best_a = score, a
@@ -207,7 +254,7 @@ def mpc_act(model, V, obs, obs_dim, act_dim, discrete, n_samples=200, device="cu
         obs_t = torch.from_numpy(np.tile(obs, (n_samples, 1))).float().to(device)
         act_t = torch.from_numpy(acts).float().to(device)
         with torch.no_grad():
-            sp, rp, _, _ = model(obs_t, act_t)
+            sp, rp, _, _, _ = model(obs_t, act_t)
             score = rp + 0.95 * V(sp)
         return acts[int(score.argmax().item())]
 
@@ -261,7 +308,9 @@ if __name__ == "__main__":
 
     print(f"=== GDSP 统一入口 [{args.env}] (含生长+淘汰, 纯框架) ===", flush=True)
     model = train_gdsp(collect, obs_dim, act_dim, discrete, args.epochs, device=args.device)
-    V = train_value(model, collect, obs_dim, act_dim, discrete, device=args.device)
+    import gymnasium as gym
+    env_fn = lambda: gym.make('CartPole-v1' if args.env == 'cartpole' else 'BipedalWalker-v3')
+    V = train_value(env_fn, obs_dim, act_dim, discrete, device=args.device)
     model.eval(); V.eval()
 
     # 评估
