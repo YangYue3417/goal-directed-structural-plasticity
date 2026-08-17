@@ -81,6 +81,8 @@ def main():
                     cand_rows = sh[t_h, t_hard].argmax(-1)
                     m.pool.dream_grow(cand_rows)
                 m.pool.settle_babies(age_thresh=800.0, rate_thresh=0.01)
+                if hasattr(m.pool, "settle_reserve"):
+                    m.pool.settle_reserve(age_thresh=1200.0, rate_thresh=0.003)
 
         m.eval()
         sp, _, _ = m(X)
@@ -100,8 +102,9 @@ def main():
             d_sw = (err2[sw].mean().item() - e_sw) / max(e_sw, 1e-9) * 100
         else:
             d_sw = 0.0
+        st = m.pool.reserve_stats if hasattr(m.pool, "reserve_stats") else {}
         print(f"[{mode}] 生长 {len(gl)} | 切换 {e_sw:.4f} | 稳定 {e_st:.4f} "
-              f"| 删后切换 {d_sw:+.0f}%")
+              f"| 删后切换 {d_sw:+.0f}% | 储备: {st}")
 
 
 if __name__ == "__main__":

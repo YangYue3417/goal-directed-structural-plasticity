@@ -40,6 +40,22 @@ class MemPool(nn.Module):
         self.register_buffer("baby_mask", torch.zeros(d_pool, dtype=torch.bool))
         self.register_buffer("baby_age", torch.zeros(d_pool))
         self.register_buffer("baby_rate", torch.zeros(d_pool))  # 试探期激活率
+        # 储备生命周期: 塑造期→评估→保留/凋亡→再出生
+        self.register_buffer("reserve_age", torch.zeros(d_pool))
+        self.register_buffer("reserve_rate", torch.zeros(d_pool))  # shadow 选中率
+        self.register_buffer("reserve_born", torch.zeros(d_pool))   # 出生代次
+        self.reserve_stats = {"apoptosis": 0, "reborn": 0, "kept": 0}
+
+    def _reinit_neuron(self, idx):
+        """重新随机初始化神经元 (凋亡后再出生)。"""
+        with torch.no_grad():
+            self.W_in.data[idx] = torch.randn_like(self.W_in.data[idx]) / self.d_model ** 0.5
+            self.W_out.data[:, idx] = torch.randn_like(self.W_out.data[:, idx]) / self.d_pool ** 0.5
+            self.tau_log.data[idx] = torch.log(torch.tensor(8.0))
+            self.reserve_age[idx] = 0.0
+            self.reserve_rate[idx] = 0.0
+            self.reserve_born[idx] += 1
+        self.reserve_stats["reborn"] += 1
 
     def tau(self):
         return torch.exp(self.tau_log).clamp(1.5, 100.0)
@@ -93,6 +109,13 @@ class MemPool(nn.Module):
                 sh_r = torch.zeros(B, r_idx.numel(), device=pre.device)
                 sh_r.scatter_(1, idx_r, F.gelu(vals_r))
                 self._shadow.append(sh_r)
+                # 储备选中率 (shadow top-k 内) + 年龄 (塑造期计时)
+                with torch.no_grad():
+                    oh_r = torch.zeros(B, r_idx.numel(), device=pre.device)
+                    oh_r.scatter_(1, idx_r, 1.0)
+                    self.reserve_rate[r_idx] = 0.999 * self.reserve_rate[r_idx] \
+                                               + 0.001 * oh_r.mean(0)
+                    self.reserve_age[r_idx] += 1.0
             # 激活率 + baby 年龄/激活
             with torch.no_grad():
                 oh = torch.zeros(B, self.d_pool, device=pre.device)
@@ -110,6 +133,24 @@ class MemPool(nn.Module):
         else:
             self.shadow_stack = None
         return torch.stack(outs, 1), torch.stack(sels, 1)
+
+    def settle_reserve(self, age_thresh=2000.0, rate_thresh=0.003):
+        """储备成熟评估: 塑造期结束 → 激活率高的保留 (有方向),
+        激活率低的凋亡 → 再出生 (重新塑造)。"""
+        rmask = (~self.active_mask & ~self.baby_mask)
+        done = rmask & (self.reserve_age >= age_thresh)
+        if not done.any():
+            return 0, 0
+        good = done & (self.reserve_rate >= rate_thresh)   # 有贡献 → 保留
+        bad = done & ~good                                  # 无贡献 → 凋亡
+        n_bad = int(bad.sum().item())
+        if n_bad:
+            idx = bad.nonzero().flatten()
+            for i in idx:
+                self._reinit_neuron(int(i))
+            self.reserve_stats["apoptosis"] += n_bad
+        self.reserve_stats["kept"] += int(good.sum().item())
+        return int(good.sum().item()), n_bad
 
     def dream_grow(self, shadow_sel_hard, n=2):
         """做梦生长: 激活储备神经元中对难样本 shadow 预测最好的。
