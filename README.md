@@ -68,7 +68,7 @@ The research chain — each step asks *why*:
 
 | Domain | Agent | World model internals |
 |:---:|:---|:---|
-| **Bipedal Walker** | ![walker](assets/walker_demo.gif) | Δ-residual world model + SR safety-occupancy value + 3-step MPC — continuous survival, no rewards |
+| **Bipedal Walker** | ![walker](assets/walker_demo.gif) | Δ-residual world model + SR safety-occupancy value + 3-step MPC — **balances indefinitely without falling** (safety-optimal policy is stationary); locomotion is a documented boundary |
 | **CartPole** | ![cartpole](assets/cartpole_demo.gif) | World-model prediction selects the action that keeps the pole upright |
 | **Ms. Pac-Man** | ![pacman](assets/atari_pacman_wm.gif) | Top: real gameplay · Bottom: spatial structure of world-model neurons (learned 5×5 field connectivity) |
 
@@ -97,7 +97,7 @@ train_gdsp(env_fn, obs_dim, act_dim)      # swap env to transfer
 | Domain | Obs → Action | Result |
 |:---|:---|:---|
 | CartPole | 4-dim → discrete 2 | world model 0.0046, MPC beats random |
-| Walker | 24-dim joints → continuous 4 | **771-1374 steps avg, 42-70% complete episodes** (Δ-WM + SR value + 3-step MPC, no rewards) |
+| Walker | 24-dim joints → continuous 4 | **balances 771-1600 steps (no falls, no rewards)**; displacement ≈ 0 — safety-optimal policy is stationary, coordinated locomotion beyond random-sampling MPC |
 | Cycle task | 1-dim state machine | memory pool learns phase: 0.016 vs 0.77 error (48×) |
 
 ### Walker 训练脚本系列 (持续生存自举)
