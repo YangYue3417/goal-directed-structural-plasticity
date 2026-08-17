@@ -73,7 +73,7 @@ class WalkerEnergyEnv:
         # 死亡条件: 环境跌倒 / 驱动规则 / 能量耗尽
         dead = done_env or dead_slow or self.E <= 0
         # 奖励: 前进微量 + 阶段能量补充 + 死亡惩罚 (惩罚驱动, 无任务目标)
-        r = 0.01 * vx + 0.1 * gained - 1.0 * dead
+        r = 0.3 * vx + 0.1 * gained - 1.0 * dead
         return self._obs(), r, dead
 
     def close(self):
