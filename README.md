@@ -64,6 +64,14 @@ The research chain — each step asks *why*:
 
 ![Transfer](assets/transfer.png)
 
+### 🎬 Demos (trained agents, no external RL)
+
+| Domain | Agent | World model internals |
+|:---:|:---|:---|
+| **Bipedal Walker** | ![walker](assets/walker_demo.gif) | Δ-residual world model + SR safety-occupancy value + 3-step MPC — continuous survival, no rewards |
+| **CartPole** | ![cartpole](assets/cartpole_demo.gif) | World-model prediction selects the action that keeps the pole upright |
+| **Ms. Pac-Man** | ![pacman](assets/atari_pacman_wm.gif) | Top: real gameplay · Bottom: spatial structure of world-model neurons (learned 5×5 field connectivity) |
+
 ## 🧩 Architecture: one entry, components guaranteed
 
 A single entry point (`train_gdsp.py`) makes **growth, pruning, and consolidation required runtime components** — migrating to a new domain means swapping the environment, never re-assembling the framework:
