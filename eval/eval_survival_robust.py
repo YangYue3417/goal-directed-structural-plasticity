@@ -1,4 +1,4 @@
-"""稳定性 + 迁移验证: 多 seed × 多环境配置 的 30 天生存。"""
+"""稳定性 + 迁移验证: 多 seed × 多环境配置 的持续生存。"""
 import sys
 sys.path.insert(0, '.')
 import numpy as np, torch

@@ -6,7 +6,7 @@
 
 ---
 
-**Abstract.** Biological brains rewire as the environment demands: V1 neurons form receptive fields, hippocampal cells encode places, and circuits specialize for survival-relevant structure. Neural networks rarely self-organize this way — MoE experts collapse into generalists, and growing networks add dead capacity. We study *when* specialization emerges and becomes functional. Across symbolic, pixel, and Atari domains, we show that **(1)** prediction objectives force structured representations, **(2)** error-driven growth produces functionally critical neurons, **(3)** connection-mask learning self-organizes receptive fields, **(4)** cognitive maps emerge from path integration, and **(5)** consolidation has environment-dependent boundary conditions. All findings are validated by causal deletion and survive in a daily-changing world for 30 days.
+**Abstract.** Biological brains rewire as the environment demands: V1 neurons form receptive fields, hippocampal cells encode places, and circuits specialize for survival-relevant structure. Neural networks rarely self-organize this way — MoE experts collapse into generalists, and growing networks add dead capacity. We study *when* specialization emerges and becomes functional. Across symbolic, pixel, and Atari domains, we show that **(1)** prediction objectives force structured representations, **(2)** error-driven growth produces functionally critical neurons, **(3)** connection-mask learning self-organizes receptive fields, **(4)** cognitive maps emerge from path integration, and **(5)** consolidation has environment-dependent boundary conditions. All findings are validated by causal deletion and survive in a daily-changing world indefinitely (continuous survival, no fixed horizon).
 
 </div>
 
@@ -57,7 +57,7 @@ The research chain — each step asks *why*:
 | **P2** | What training condition forces structure? | Neuron-level specialization was memory — what makes it functional? | Prediction 94.9% vs policy 4.2% — **task demand shapes representation** |
 | **P3** | Can the environment induce growth? | Is growth "adding capacity" or "purposeful"? | Error-driven 1.47× more critical (causal deletion); connection adaptation → receptive fields |
 | **P4** | How is space built without a map? | How do animals navigate without GPS? | Path integration 96.7% — **cognitive maps emerge from motion** |
-| **P5** | How does knowledge persist? | Dynamic world + finite brain | Sleep boundaries: fragment replay works, downscaling needs capacity pressure; **30-day survival** |
+| **P5** | How does knowledge persist? | Dynamic world + finite brain | Sleep boundaries: fragment replay works, downscaling needs capacity pressure; **continuous survival** |
 | **P6** | Is the mechanism general? | Toy-specific or universal principle? | Symbolic → vision → Atari, zero architecture change — **observation-agnostic** |
 
 ![Results](assets/results.png)
@@ -128,8 +128,8 @@ python world_models/train_wm_explore.py --sensor walls
 # P3: visual receptive fields self-organize (~25 min)
 python world_models/train_wm_image_v3.py --epochs 25
 
-# P5: 30-day survival in a daily-changing world (~10 min)
-python sleep/test_survival_dynamic.py --days 30
+# P5: continuous survival in a daily-changing world (~10 min)
+python sleep/test_survival_dynamic.py --days 100   # no fixed horizon — always survive
 
 # Unified entry: growth/pruning automatic — swap env to transfer
 python train_gdsp.py --env cartpole   # 4-dim state, discrete action
