@@ -78,17 +78,46 @@ A single entry point (`train_gdsp.py`) makes **growth, pruning, and consolidatio
 
 ```
 train_gdsp(env_fn, obs_dim, act_dim)      # swap env to transfer
-    → world model (connection-mask pool)  # backbone
-    → growth (error-driven)               # automatic, required
+    → world model (connection-mask / Δ-residual / LIF memory pool)
+    → growth (error-driven, hard-sample)  # automatic, required
     → pruning (usage-based)               # automatic, required
     → consolidation (fragment replay)     # automatic, required
-    → decision (learned V + MPC)          # pure framework, no external RL
+    → decision (learned V + MPC, 1-3 step) # pure framework, no external RL
 ```
+
+**Mechanism family** (each verified by causal deletion):
+
+| Mechanism | Finding |
+|:---|:---|
+| **Growth → trial → connect** (baby neurons) | Direct cloning breaks the pool (-89%); weak-init + probe + settle makes grown neurons functional (+378%) |
+| **Dream-phase growth** (training shapes reserve directions via shadow prediction, dreaming activates them) | Grown neurons functional on activation (+140%); reserve lifecycle (apoptosis/reborn) improves 2-3× |
+| **Memory pool** (LIF membrane potential, per-neuron τ) | Neurons acquire state-transition ability: cycle task 48× better at phase prediction |
+| **Multi-step MPC** (D=1→3) | Decision horizon, not data or sensing, was Walker's bottleneck: 40% → 70% complete episodes |
 
 | Domain | Obs → Action | Result |
 |:---|:---|:---|
 | CartPole | 4-dim → discrete 2 | world model 0.0046, MPC beats random |
-| Walker | 24-dim joints → continuous 4 | growth auto-attached (14 neurons); exploration-bound |
+| Walker | 24-dim joints → continuous 4 | **771-1374 steps avg, 42-70% complete episodes** (Δ-WM + SR value + 3-step MPC, no rewards) |
+| Cycle task | 1-dim state machine | memory pool learns phase: 0.016 vs 0.77 error (48×) |
+
+### Walker 训练脚本系列 (持续生存自举)
+
+```
+walker_bootstrap.py   # 自举循环 (随机收集 → 学习 → 再收集)
+walker_sr.py          # SR 安全访问价值 (无奖励, 抗扰动 <±8%)
+walker_full.py        # 整套: 白天学习+生长, 夜晚做梦+淘汰 (ΔWM)
+walker_parallel.py    # 8 envs 并行, 数据速率 ×8
+walker_mem.py         # 记忆池 (LIF) 世界模型
+```
+
+### 神经元机制实验脚本 (符号, 分钟级)
+
+```
+mempool.py            # 记忆池 (LIF + τ 分工) + baby 生长 + shadow 储备 + 生命周期
+cycle_task.py         # 周期状态机: 记忆 → 状态转换能力
+discrim_experiment.py # 结构难 vs 噪声难 → 生长功能差异
+dream_grow_task.py    # 训练塑造方向 + 做梦生长 + 储备凋亡/再出生
+```
 
 ## ⚠️ Limitations
 
@@ -142,6 +171,15 @@ python sleep/test_survival_dynamic.py --days 100   # no fixed horizon — always
 # Unified entry: growth/pruning automatic — swap env to transfer
 python train_gdsp.py --env cartpole   # 4-dim state, discrete action
 python train_gdsp.py --env walker     # 24-dim joints, continuous action
+
+# Walker: bootstrap survival (continuous, no rewards)
+python walker_full.py --rounds 8 --steps_per_round 10000   # day: learn+grow, night: dream+prune
+python walker_parallel.py --rounds 20 --steps_per_round 50000 --n_envs 8  # parallel
+
+# Neuron mechanisms (symbolic, minutes)
+python cycle_task.py          # memory pool → state-transition ability
+python discrim_experiment.py  # structural vs noisy difficulty → growth function
+python dream_grow_task.py     # train shapes direction + dream-phase growth
 ```
 
 *Atari: `pip install gymnasium[atari] ale-py opencv-python-headless`, then `python world_models/train_atari_wm.py`*
@@ -156,6 +194,7 @@ All experiment configurations are centralized in [`config.py`](config.py). Full 
 | **docs/MASTER_SUMMARY.md** | Research narrative & finding chain (中文) |
 | **docs/FINDINGS_growth_functional.md** | Center experiments: growth / survival / transfer (中文) |
 | **docs/FINDINGS_world_model.md** | World models, credit assignment, dreaming (中文) |
+| **docs/FINDINGS_control_domain.md** | Control domain (CartPole/Walker): mechanism family + honest boundaries (中文) |
 
 ## 📖 Citation
 
