@@ -39,6 +39,8 @@ class LIFPool(nn.Module):
         # 发放统计
         self.register_buffer("f_rate", torch.zeros(d_pool))   # 发放率 EMA
         self.register_buffer("f_count", torch.zeros(d_pool))
+        # 自适应阈值 (intrinsic plasticity): 发放率稳态 (每神经元敏感性分化)
+        self.register_buffer("f_target", torch.full((d_pool,), 0.05))
         self.growth_log = []
 
     def tau(self):
@@ -64,8 +66,8 @@ class LIFPool(nn.Module):
             self.vm = self.vm.masked_fill(~alive.unsqueeze(0), -1e9)
             # ② 阈值检测 → 发放事件 (非输出!)
             spike = self.vm > th.unsqueeze(0)
-            # ③ 发放后部分复位 (不应期, 电势回落到基线)
-            self.vm[spike] = self.vm[spike] * 0.1
+            # ③ 发放后阈值减法复位 (SNN 标准: V_m -= θ, 保留相位积累)
+            self.vm = self.vm - (spike.float() * th.unsqueeze(0))
             # 读出 = 连续膜电位 (电势有高低! 表示信息)
             out = F.gelu(self.vm) @ self.W_out.t()
             outs.append(out)
@@ -75,6 +77,9 @@ class LIFPool(nn.Module):
                 self.f_rate = 0.999 * self.f_rate.to(self.W_in.device) \
                               + 0.001 * spike.float().mean(0)
                 self.f_count += spike.float().mean(0)
+                # 自适应阈值: 发放率稳态 (太活跃→升, 太安静→降)
+                self.theta = (self.theta + 0.01 * (self.f_rate - self.f_target)) \
+                    .clamp(0.05, 2.0)
         return torch.stack(outs, 1), torch.stack(spikes, 1)
 
     def grow(self, spike_sel, n=2, alpha=0.2, perturb=0.2):
