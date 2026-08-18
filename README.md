@@ -68,7 +68,7 @@ The research chain — each step asks *why*:
 
 | Domain | Agent | World model internals |
 |:---:|:---|:---|
-| **Bipedal Walker (edge-standing + gait)** | ![walker](assets/walker_tread.gif) | Pose-safe zone (hull ≥ 5.6 = edge-standing, hip anti-phase = leg alternation): **100% frames verified — edge standing with alternating legs** (strict geometry criterion) |
+| **Bipedal Walker (stepping in place)** | ![walker](assets/walker_tread.gif) | Hull safety zone (≥5.6) is the **only hard constraint**; visible stepping: hip swing 0.9 + knee flexion 1.0 (legs alternate 84%, knee bends freely) |
 | **Bipedal Walker (early)** | ![walker](assets/walker_demo.gif) | Δ-residual world model + SR value + MPC — balances without falling (safety-optimal policy is stationary; locomotion is a documented boundary) |
 | **CartPole** | ![cartpole](assets/cartpole_demo.gif) | World-model prediction selects the action that keeps the pole upright |
 | **Ms. Pac-Man** | ![pacman](assets/atari_pacman_wm.gif) | Top: real gameplay · Bottom: spatial structure of world-model neurons (learned 5×5 field connectivity) |

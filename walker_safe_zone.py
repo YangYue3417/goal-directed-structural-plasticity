@@ -63,14 +63,20 @@ class SafeZoneEnv(WalkerEnergyEnv):
             self.E = min(self.E0 * 1.5, self.E + self.E_goal)
             gained += self.E_goal
         dead = done_env or dead_slow or dead_low or dead_left or self.E <= 0
-        # 双腿交替检测: hip 反相 (hip1 ≈ -hip2, 交替踏步)
+        # 踏步: 髋前摆 + 屈膝抬腿 (膝可弯, 幅度可见)
         hip1, hip2 = self.obs[4], self.obs[6]
-        alternating = (hip1 * hip2 < 0) and (abs(hip1) + abs(hip2) > 0.05)
-        # 奖励: 边缘站立 + 双腿交替 + 右侧 + 前进 + 能量 + 死亡惩罚
-        safe_bonus = 0.2 if (hy >= self.h_safe and alternating) else 0.0
-        alt_bonus = 0.05 if alternating else 0.0
-        right_bonus = 0.1 * max(0.0, min(1.0, hx / 5.0))  # 越右越安全
-        r = 0.3 * vx + safe_bonus + alt_bonus + right_bonus + 0.1 * gained - 1.0 * dead
+        knee1, knee2 = self.obs[5], self.obs[7]
+        # 交替 = hip 反相 (hip1·hip2<0) 且幅度显著 (踏步可见)
+        alt_amp = abs(hip1) + abs(hip2)
+        alternating = (hip1 * hip2 < 0) and (alt_amp > 0.15)
+        # 屈膝允许 (踏步时膝盖弯曲 = 抬腿)
+        knee_act = abs(knee1) + abs(knee2)  # 膝活跃 (弯曲=抬腿)
+        # 奖励: 唯一硬约束 hull 安全区; 踏步 (交替+髋摆+屈膝) + 前进
+        safe_bonus = 0.3 if hy >= self.h_safe else 0.0   # 硬约束
+        step_bonus = 0.15 if alternating else 0.0        # 交替踏步
+        knee_bonus = 0.03 * min(2.0, knee_act)           # 屈膝抬腿鼓励
+        right_bonus = 0.1 * max(0.0, min(1.0, hx / 5.0))
+        r = 0.3 * vx + safe_bonus + step_bonus + knee_bonus + right_bonus + 0.1 * gained - 1.0 * dead
         return self._obs(), r, dead
 
 
