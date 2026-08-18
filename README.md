@@ -68,7 +68,8 @@ The research chain — each step asks *why*:
 
 | Domain | Agent | World model internals |
 |:---:|:---|:---|
-| **Bipedal Walker** | ![walker](assets/walker_demo.gif) | Δ-residual world model + SR safety-occupancy value + 3-step MPC — **balances indefinitely without falling** (safety-optimal policy is stationary); locomotion is a documented boundary |
+| **Bipedal Walker (standing)** | ![walker](assets/walker_standing.gif) | Pose-safe zone (hull height > 5.0 = safe): **verified upright standing, 100% safe frames** (height-verified, not crouching) |
+| **Bipedal Walker (early)** | ![walker](assets/walker_demo.gif) | Δ-residual world model + SR value + MPC — balances without falling (safety-optimal policy is stationary; locomotion is a documented boundary) |
 | **CartPole** | ![cartpole](assets/cartpole_demo.gif) | World-model prediction selects the action that keeps the pole upright |
 | **Ms. Pac-Man** | ![pacman](assets/atari_pacman_wm.gif) | Top: real gameplay · Bottom: spatial structure of world-model neurons (learned 5×5 field connectivity) |
 

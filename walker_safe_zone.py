@@ -21,10 +21,12 @@ from walker_energy_env import WalkerEnergyEnv
 
 
 class SafeZoneEnv(WalkerEnergyEnv):
-    """姿态安全区环境: 站姿(高) = 安全, 低姿态 = 危险。"""
-    def __init__(self, h_safe=5.0, low_n=60, **kw):
+    """动态安全区: 站姿(高) + 左侧区域逐渐危险 (必须右移探索)。"""
+    def __init__(self, h_safe=5.0, low_n=60, x_left=2.0, x_n=40, **kw):
         self.h_safe = h_safe    # 站姿安全高度
         self.low_n = low_n      # 低姿态持续 N 步 → 危险死亡
+        self.x_left = x_left    # 左侧危险边界 (x < 此值)
+        self.x_n = x_n          # 左侧停留 N 步 → 危险死亡
         super().__init__(**kw)
 
     def _hull_y(self):
@@ -33,6 +35,7 @@ class SafeZoneEnv(WalkerEnergyEnv):
     def reset(self):
         o = super().reset()
         self.low_steps = 0
+        self.x_left_steps = 0
         return o
 
     def step(self, act):
@@ -50,15 +53,20 @@ class SafeZoneEnv(WalkerEnergyEnv):
         hy = self._hull_y()
         self.low_steps = self.low_steps + 1 if hy < self.h_safe else 0
         dead_low = self.low_steps > self.low_n
+        # 动态安全: 左侧区域逐渐危险 (x 低 → 停留累积)
+        hx = self.env.unwrapped.hull.position.x
+        self.x_left_steps = self.x_left_steps + 1 if hx < self.x_left else 0
+        dead_left = self.x_left_steps > self.x_n
         gained = 0.0
         while self.dist >= self.D_goal:
             self.dist -= self.D_goal
             self.E = min(self.E0 * 1.5, self.E + self.E_goal)
             gained += self.E_goal
-        dead = done_env or dead_slow or dead_low or self.E <= 0
-        # 奖励: 站姿安全 (高) + 前进 + 能量 + 死亡惩罚
+        dead = done_env or dead_slow or dead_low or dead_left or self.E <= 0
+        # 奖励: 站姿安全 + 右侧探索 + 前进 + 能量 + 死亡惩罚
         safe_bonus = 0.2 if hy >= self.h_safe else 0.0
-        r = 0.3 * vx + safe_bonus + 0.1 * gained - 1.0 * dead
+        right_bonus = 0.1 * max(0.0, min(1.0, hx / 5.0))  # 越右越安全
+        r = 0.3 * vx + safe_bonus + right_bonus + 0.1 * gained - 1.0 * dead
         return self._obs(), r, dead
 
 
