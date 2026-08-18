@@ -22,8 +22,8 @@ from walker_energy_env import WalkerEnergyEnv
 
 class SafeZoneEnv(WalkerEnergyEnv):
     """动态安全区: 站姿(高) + 左侧区域逐渐危险 (必须右移探索)。"""
-    def __init__(self, h_safe=5.0, low_n=60, x_left=2.0, x_n=40, **kw):
-        self.h_safe = h_safe    # 站姿安全高度
+    def __init__(self, h_safe=5.6, low_n=60, x_left=2.0, x_n=40, **kw):
+        self.h_safe = h_safe    # 边缘站立高度 (腿伸长≥85%: 3.35+2.29×0.85+0.29)
         self.low_n = low_n      # 低姿态持续 N 步 → 危险死亡
         self.x_left = x_left    # 左侧危险边界 (x < 此值)
         self.x_n = x_n          # 左侧停留 N 步 → 危险死亡
@@ -63,10 +63,14 @@ class SafeZoneEnv(WalkerEnergyEnv):
             self.E = min(self.E0 * 1.5, self.E + self.E_goal)
             gained += self.E_goal
         dead = done_env or dead_slow or dead_low or dead_left or self.E <= 0
-        # 奖励: 站姿安全 + 右侧探索 + 前进 + 能量 + 死亡惩罚
-        safe_bonus = 0.2 if hy >= self.h_safe else 0.0
+        # 双腿交替检测: hip 反相 (hip1 ≈ -hip2, 交替踏步)
+        hip1, hip2 = self.obs[4], self.obs[6]
+        alternating = (hip1 * hip2 < 0) and (abs(hip1) + abs(hip2) > 0.05)
+        # 奖励: 边缘站立 + 双腿交替 + 右侧 + 前进 + 能量 + 死亡惩罚
+        safe_bonus = 0.2 if (hy >= self.h_safe and alternating) else 0.0
+        alt_bonus = 0.05 if alternating else 0.0
         right_bonus = 0.1 * max(0.0, min(1.0, hx / 5.0))  # 越右越安全
-        r = 0.3 * vx + safe_bonus + right_bonus + 0.1 * gained - 1.0 * dead
+        r = 0.3 * vx + safe_bonus + alt_bonus + right_bonus + 0.1 * gained - 1.0 * dead
         return self._obs(), r, dead
 
 
