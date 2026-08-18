@@ -81,15 +81,15 @@ class SafeZoneEnv(WalkerEnergyEnv):
 
 
 class Agent(nn.Module):
-    """统一池策略 (窗口): 观测 → 动作。"""
-    def __init__(self, obs=26, L=8, act=4, d=64, pool=256, top_k=32):
+    """统一池策略 (窗口): 观测 → 腿1模式, 腿2 = 反相耦合 (结构保证交替)。"""
+    def __init__(self, obs=26, L=8, d=64, pool=256, top_k=32):
         super().__init__()
         self.L = L
         self.embed = nn.Linear(obs * L, d)
         self.act_mask = torch.zeros(pool, dtype=torch.bool)
         self.act_mask[:96] = True
         self.W = nn.Linear(d, pool)
-        self.head = nn.Linear(pool, act)
+        self.head = nn.Linear(pool, 2)   # 输出 (hip, knee) 模式
 
     def forward(self, x):
         z = torch.tanh(self.embed(x))
@@ -99,15 +99,17 @@ class Agent(nn.Module):
         vals, idx = pre.topk(32, dim=1)
         sparse = torch.zeros_like(pre)
         sparse.scatter_(1, idx, torch.tanh(vals))
-        return torch.tanh(self.head(sparse))
+        return torch.tanh(self.head(sparse))   # (B, 2): hip, knee
 
     def act(self, hist, noise=0.0):
         dev = next(self.parameters()).device
         with torch.no_grad():
-            a = self.forward(torch.from_numpy(hist).float().to(dev).unsqueeze(0))
+            m = self.forward(torch.from_numpy(hist).float().to(dev).unsqueeze(0))[0]
             if noise:
-                a = a + noise * torch.randn_like(a)
-            return np.clip(a[0].cpu().numpy(), -1, 1).astype(np.float32)
+                m = m + noise * torch.randn_like(m)
+        h, k = float(m[0]), float(m[1])
+        # 结构耦合: 腿2 = 反相 (hip2=-h, knee2=-k) — 两腿必然交替
+        return np.array([h, k, -h, -k], np.float32)
 
 
 def eval_ep(agent, env, max_steps=1600, noise=0.0):
