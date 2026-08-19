@@ -1,5 +1,5 @@
 {
-  "started": "2026-08-19T10:28:01.139970",
+  "started": "2026-08-19T10:38:47.043714",
   "rounds": [
     {
       "round": 0,
@@ -84,12 +84,138 @@
       "correct": 0,
       "total": 12,
       "new": 12
+    },
+    {
+      "round": 12,
+      "reach": 12,
+      "correct": 0,
+      "total": 13,
+      "new": 13
+    },
+    {
+      "round": 13,
+      "reach": 13,
+      "correct": 0,
+      "total": 14,
+      "new": 14
+    },
+    {
+      "round": 14,
+      "reach": 14,
+      "correct": 0,
+      "total": 15,
+      "new": 15
+    },
+    {
+      "round": 15,
+      "reach": 15,
+      "correct": 0,
+      "total": 16,
+      "new": 16
+    },
+    {
+      "round": 16,
+      "reach": 18,
+      "correct": 0,
+      "total": 19,
+      "new": 19
+    },
+    {
+      "round": 17,
+      "reach": 19,
+      "correct": 0,
+      "total": 20,
+      "new": 20
+    },
+    {
+      "round": 18,
+      "reach": 20,
+      "correct": 0,
+      "total": 21,
+      "new": 21
+    },
+    {
+      "round": 19,
+      "reach": 21,
+      "correct": 0,
+      "total": 22,
+      "new": 22
+    },
+    {
+      "round": 20,
+      "reach": 22,
+      "correct": 0,
+      "total": 23,
+      "new": 23
+    },
+    {
+      "round": 21,
+      "reach": 23,
+      "correct": 0,
+      "total": 24,
+      "new": 24
+    },
+    {
+      "round": 22,
+      "reach": 24,
+      "correct": 0,
+      "total": 25,
+      "new": 25
+    },
+    {
+      "round": 23,
+      "reach": 28,
+      "correct": 0,
+      "total": 29,
+      "new": 29
+    },
+    {
+      "round": 24,
+      "reach": 29,
+      "correct": 0,
+      "total": 30,
+      "new": 30
+    },
+    {
+      "round": 25,
+      "reach": 30,
+      "correct": 0,
+      "total": 31,
+      "new": 31
+    },
+    {
+      "round": 26,
+      "reach": 31,
+      "correct": 0,
+      "total": 32,
+      "new": 32
+    },
+    {
+      "round": 27,
+      "reach": 32,
+      "correct": 0,
+      "total": 33,
+      "new": 33
+    },
+    {
+      "round": 28,
+      "reach": 34,
+      "correct": 0,
+      "total": 35,
+      "new": 35
+    },
+    {
+      "round": 29,
+      "reach": 35,
+      "correct": 0,
+      "total": 36,
+      "new": 36
     }
   ],
   "errors": [
     {
       "n": 0,
-      "predicted": 21,
+      "predicted": 28,
       "correct": 1
     },
     {
@@ -114,17 +240,17 @@
     },
     {
       "n": 5,
-      "predicted": 1,
+      "predicted": 4,
       "correct": 6
     },
     {
       "n": 6,
-      "predicted": 1,
+      "predicted": 5,
       "correct": 7
     },
     {
       "n": 7,
-      "predicted": 6,
+      "predicted": 7,
       "correct": 8
     },
     {
@@ -134,7 +260,7 @@
     },
     {
       "n": 9,
-      "predicted": 3,
+      "predicted": 1,
       "correct": 10
     },
     {
@@ -146,6 +272,96 @@
       "n": 11,
       "predicted": 2,
       "correct": 12
+    },
+    {
+      "n": 12,
+      "predicted": 3,
+      "correct": 13
+    },
+    {
+      "n": 13,
+      "predicted": 4,
+      "correct": 14
+    },
+    {
+      "n": 14,
+      "predicted": 5,
+      "correct": 15
+    },
+    {
+      "n": 15,
+      "predicted": 6,
+      "correct": 16
+    },
+    {
+      "n": 18,
+      "predicted": 9,
+      "correct": 19
+    },
+    {
+      "n": 19,
+      "predicted": 10,
+      "correct": 20
+    },
+    {
+      "n": 20,
+      "predicted": 1,
+      "correct": 21
+    },
+    {
+      "n": 21,
+      "predicted": 2,
+      "correct": 22
+    },
+    {
+      "n": 22,
+      "predicted": 13,
+      "correct": 23
+    },
+    {
+      "n": 23,
+      "predicted": 14,
+      "correct": 24
+    },
+    {
+      "n": 24,
+      "predicted": 5,
+      "correct": 25
+    },
+    {
+      "n": 28,
+      "predicted": 19,
+      "correct": 29
+    },
+    {
+      "n": 29,
+      "predicted": 20,
+      "correct": 30
+    },
+    {
+      "n": 30,
+      "predicted": 1,
+      "correct": 31
+    },
+    {
+      "n": 31,
+      "predicted": 12,
+      "correct": 32
+    },
+    {
+      "n": 32,
+      "predicted": 23,
+      "correct": 33
+    },
+    {
+      "n": 34,
+      "predicted": 25,
+      "correct": 35
+    },
+    {
+      "n": 35,
+      "predicted": 26,
+      "correct": 36
     }
   ]
 }
